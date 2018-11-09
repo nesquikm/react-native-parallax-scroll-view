@@ -60,11 +60,11 @@ class ParallaxScrollView extends Component {
 		this.state = {
 			scrollY: new Animated.Value(0),
 			viewHeight: window.height,
-			viewWidth: window.width
+			viewWidth: window.width,
+			contentHeight: 0,
 		}
 		this.scrollY = new Animated.Value(0)
 		this._footerComponent = { setNativeProps() { } } // Initial stub
-		this._footerHeight = 0
 	}
 
 	animatedEvent = Animated.event(
@@ -308,11 +308,31 @@ class ParallaxScrollView extends Component {
 		)
 	}
 
+	componentDidUpdate(prevProps, prevState) {
+		const { viewHeight, contentHeight } = this.state
+		const { stickyHeaderHeight } = this.props
+
+		const { viewHeightPrev, contentHeightPrev } = this.state
+		const { stickyHeaderHeightPrev } = this.props
+
+		if ( viewHeight != viewHeightPrev
+			|| contentHeight != contentHeightPrev
+			|| stickyHeaderHeight != stickyHeaderHeightPrev) {
+			// Adjust the bottom height so we can scroll the parallax header all the way up.
+			const footerHeight = Math.max(
+				0,
+				viewHeight - contentHeight - stickyHeaderHeight
+			)
+			this._footerComponent.setNativeProps({
+				style: { height: footerHeight }
+			})
+		}
+	}
+
 	_wrapChildren(
 		children,
-		{ contentBackgroundColor, stickyHeaderHeight, contentContainerStyle, renderContentBackground }
+		{ contentBackgroundColor, contentContainerStyle, renderContentBackground }
 	) {
-		const { viewHeight } = this.state
 		const containerStyles = [{ backgroundColor: contentBackgroundColor }]
 
 		if (contentContainerStyle) containerStyles.push(contentContainerStyle)
@@ -329,18 +349,8 @@ class ParallaxScrollView extends Component {
 			<View
 				style={[containerStyles, { minHeight: this.containerHeight }]}
 				onLayout={e => {
-					// Adjust the bottom height so we can scroll the parallax header all the way up.
 					const { nativeEvent: { layout: { height } } } = e
-					const footerHeight = Math.max(
-						0,
-						viewHeight - height - stickyHeaderHeight
-					)
-					if (this._footerHeight !== footerHeight) {
-						this._footerComponent.setNativeProps({
-							style: { height: footerHeight }
-						})
-						this._footerHeight = footerHeight
-					}
+					this.setState({ contentHeight: height });
 				}}
 			>
 				{renderContentBackground()}
